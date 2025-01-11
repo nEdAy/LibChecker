@@ -1,6 +1,5 @@
 package com.absinthe.libchecker.database
 
-import androidx.lifecycle.LiveData
 import com.absinthe.libchecker.constant.GlobalValues
 import com.absinthe.libchecker.database.entity.LCItem
 import com.absinthe.libchecker.database.entity.SnapshotDiffStoringItem
@@ -11,8 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import timber.log.Timber
 
 class LCRepository(private val lcDao: LCDao) {
-
-  val allDatabaseItems: LiveData<List<LCItem>> = lcDao.getItems()
+  val allLCItemsFlow: Flow<List<LCItem>> = lcDao.getItemsFlow()
   val allSnapshotItemsFlow: Flow<List<SnapshotItem>> =
     lcDao.getSnapshotsFlow(GlobalValues.snapshotTimestamp)
 
@@ -23,6 +21,8 @@ class LCRepository(private val lcDao: LCDao) {
     }
     return true
   }
+
+  suspend fun getLCItems(): List<LCItem> = lcDao.getItems()
 
   suspend fun getItem(packageName: String): LCItem? {
     if (checkDatabaseStatus().not()) return null
@@ -94,6 +94,11 @@ class LCRepository(private val lcDao: LCDao) {
     lcDao.delete(item)
   }
 
+  fun deleteLCItemByPackageName(packageName: String) {
+    if (checkDatabaseStatus().not()) return
+    lcDao.deleteLCItemByPackageName(packageName)
+  }
+
   suspend fun delete(item: TrackItem) {
     if (checkDatabaseStatus().not()) return
     lcDao.delete(item)
@@ -126,6 +131,11 @@ class LCRepository(private val lcDao: LCDao) {
     lcDao.update(item)
   }
 
+  suspend fun deleteDuplicateSnapshotItems() {
+    if (checkDatabaseStatus().not()) return
+    lcDao.deleteDuplicateSnapshotItems()
+  }
+
   fun deleteAllSnapshots() {
     if (checkDatabaseStatus().not()) return
     lcDao.deleteAllSnapshots()
@@ -156,16 +166,15 @@ class LCRepository(private val lcDao: LCDao) {
     lcDao.deleteAllSnapshotDiffItems()
   }
 
-  suspend fun getSnapshotDiff(packageName: String): SnapshotDiffStoringItem? =
-    lcDao.getSnapshotDiff(packageName)
+  suspend fun getSnapshotDiff(packageName: String): SnapshotDiffStoringItem? = lcDao.getSnapshotDiff(packageName)
 
-  fun updateKotlinUsage(packageName: String, used: Boolean) {
+  fun updateFeatures(packageName: String, features: Int) {
     if (checkDatabaseStatus().not()) return
-    lcDao.updateKotlinUsage(packageName, used)
+    lcDao.updateFeatures(packageName, features)
   }
 
-  fun updateKotlinUsage(map: Map<String, Boolean>) {
+  fun updateFeatures(map: Map<String, Int>) {
     if (checkDatabaseStatus().not()) return
-    lcDao.updateKotlinUsage(map)
+    lcDao.updateFeatures(map)
   }
 }
