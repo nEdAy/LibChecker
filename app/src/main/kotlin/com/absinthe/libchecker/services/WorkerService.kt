@@ -4,37 +4,39 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import android.os.Message
 import android.os.RemoteCallbackList
 import android.os.RemoteException
 import android.os.SystemClock
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
-import com.absinthe.libchecker.app.Global
-import com.absinthe.libchecker.database.AppItemRepository
 import com.absinthe.libchecker.database.Repositories
 import com.absinthe.libchecker.utils.PackageUtils
-import com.absinthe.libchecker.utils.PackageUtils.isKotlinUsed
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import timber.log.Timber
+import com.absinthe.libchecker.utils.extensions.getFeatures
 import java.lang.ref.WeakReference
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import timber.log.Timber
 
 class WorkerService : LifecycleService() {
 
+  private lateinit var mainHandler: MyHandler
   private var lastPackageChangedTime: Long = 0L
 
   private val packageReceiver by lazy {
     object : BroadcastReceiver() {
       override fun onReceive(context: Context, intent: Intent?) {
         Timber.d("package receiver received: ${intent?.action}")
-        lastPackageChangedTime = SystemClock.elapsedRealtime()
-        initAllApplicationInfoItems()
-        notifyPackagesChanged(
-          intent?.data?.encodedSchemeSpecificPart.orEmpty(),
-          intent?.action.orEmpty()
-        )
+
+        val what = intent?.data?.encodedSchemeSpecificPart.orEmpty().hashCode()
+        mainHandler.removeMessages(what)
+        mainHandler.sendMessageDelayed(Message.obtain(mainHandler, what, intent), 1000)
       }
     }
   }
@@ -50,8 +52,8 @@ class WorkerService : LifecycleService() {
   override fun onCreate() {
     super.onCreate()
     Timber.d("onCreate")
-    initializingKotlinUsage = false
-    initAllApplicationInfoItems()
+    initializingFeatures = false
+    mainHandler = MyHandler(WeakReference(this))
 
     val intentFilter = IntentFilter().apply {
       addAction(Intent.ACTION_PACKAGE_ADDED)
@@ -72,19 +74,8 @@ class WorkerService : LifecycleService() {
   override fun onDestroy() {
     Timber.d("onDestroy")
     unregisterReceiver(packageReceiver)
+    mainHandler.removeCallbacksAndMessages(null)
     super.onDestroy()
-  }
-
-  private fun initAllApplicationInfoItems() {
-    Global.applicationListJob?.cancel()
-    Global.applicationListJob = lifecycleScope.launch(Dispatchers.IO) {
-      AppItemRepository.allPackageInfoMap = PackageUtils.getAppsList().asSequence()
-        .map { it.packageName to it }
-        .toMap()
-      Global.applicationListJob = null
-    }.also {
-      it.start()
-    }
   }
 
   @Synchronized
@@ -100,51 +91,34 @@ class WorkerService : LifecycleService() {
     listenerList.finishBroadcast()
   }
 
-  private fun initKotlinUsage() {
-    val map = mutableMapOf<String, Boolean>()
-    var count = 0
+  private fun initFeatures() {
+    Timber.d("initFeatures")
+    initializingFeatures = true
 
-    initializingKotlinUsage = true
-
-    lifecycleScope.launch(Dispatchers.IO) {
-      while (Repositories.lcRepository.allDatabaseItems.value == null) {
-        delay(300)
-      }
-
-      Repositories.lcRepository.allDatabaseItems.value!!.forEach { lcItem ->
-        if (lcItem.isKotlinUsed == null) {
+    Repositories.lcRepository.allLCItemsFlow.onEach {
+      it.forEach { item ->
+        if (item.features == -1) {
           runCatching {
-            map[lcItem.packageName] = PackageUtils.getPackageInfo(lcItem.packageName).isKotlinUsed()
-          }.onFailure {
-            Timber.w(it)
+            val feature = PackageUtils.getPackageInfo(item.packageName, PackageManager.GET_META_DATA).getFeatures()
+            Repositories.lcRepository.updateFeatures(item.packageName, feature)
+          }.onFailure { e ->
+            Timber.w(e)
           }
-          count++
-        }
-
-        if (count == 20) {
-          Repositories.lcRepository.updateKotlinUsage(map)
-          map.clear()
-          count = 0
         }
       }
-
-      if (count > 0) {
-        Repositories.lcRepository.updateKotlinUsage(map)
-        map.clear()
-        count = 0
-      }
-
-      initializingKotlinUsage = false
+      initializingFeatures = false
+      Timber.d("initFeatures finished")
     }
+      .flowOn(Dispatchers.IO)
+      .launchIn(lifecycleScope)
   }
 
   class WorkerBinder(service: WorkerService) : IWorkerService.Stub() {
 
     private val serviceRef: WeakReference<WorkerService> = WeakReference(service)
 
-    override fun initKotlinUsage() {
-      Timber.d("initKotlinUsage")
-      serviceRef.get()?.initKotlinUsage()
+    override fun initFeatures() {
+      serviceRef.get()?.initFeatures()
     }
 
     override fun getLastPackageChangedTime(): Long {
@@ -164,7 +138,23 @@ class WorkerService : LifecycleService() {
     }
   }
 
+  private class MyHandler(private val serviceRef: WeakReference<WorkerService>) : Handler(Looper.getMainLooper()) {
+    override fun handleMessage(msg: Message) {
+      super.handleMessage(msg)
+      val service = serviceRef.get()
+      if (service != null && msg.obj is Intent) {
+        val intent = msg.obj as Intent
+        Timber.d("handleMessage: $intent")
+        service.lastPackageChangedTime = SystemClock.elapsedRealtime()
+        service.notifyPackagesChanged(
+          intent.data?.encodedSchemeSpecificPart.orEmpty(),
+          intent.action.orEmpty()
+        )
+      }
+    }
+  }
+
   companion object {
-    var initializingKotlinUsage: Boolean = false
+    var initializingFeatures: Boolean = false
   }
 }
