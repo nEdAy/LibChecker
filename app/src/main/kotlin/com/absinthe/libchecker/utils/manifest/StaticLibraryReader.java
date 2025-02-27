@@ -2,22 +2,25 @@ package com.absinthe.libchecker.utils.manifest;
 
 import androidx.collection.ArrayMap;
 
+import com.absinthe.libchecker.compat.IZipFile;
+import com.absinthe.libchecker.compat.ZipFileCompat;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
-import java.util.jar.JarFile;
 
 import pxb.android.axml.AxmlReader;
 import pxb.android.axml.AxmlVisitor;
 import pxb.android.axml.NodeVisitor;
+import timber.log.Timber;
 
 public class StaticLibraryReader {
   private final ArrayMap<String, Object> staticLibs = new ArrayMap<>();
 
-  private StaticLibraryReader(File apk) throws IOException {
-    try (JarFile zip = new JarFile(apk)) {
+  private StaticLibraryReader(File apk) {
+    try (IZipFile zip = new ZipFileCompat(apk)) {
       InputStream is = zip.getInputStream(zip.getEntry("AndroidManifest.xml"));
       byte[] bytes = getBytesFromInputStream(is);
       AxmlReader reader = new AxmlReader(bytes != null ? bytes : new byte[0]);
@@ -28,6 +31,8 @@ public class StaticLibraryReader {
           return new ManifestTagVisitor(child);
         }
       });
+    } catch (Exception e) {
+      Timber.e(e);
     }
   }
 
@@ -44,7 +49,7 @@ public class StaticLibraryReader {
       }
       return bos.toByteArray();
     } catch (Exception e) {
-      e.printStackTrace();
+      Timber.w(e);
     }
     return null;
   }

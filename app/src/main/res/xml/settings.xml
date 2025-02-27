@@ -6,33 +6,28 @@
     app:key="normalCategory"
     app:title="@string/pref_group_normal">
 
-    <SwitchPreference
-      app:defaultValue="false"
-      app:icon="@drawable/ic_android_outline"
-      app:key="showSystemApps"
-      app:summary="@string/show_system_apps_summary"
-      app:title="@string/show_system_apps" />
-
-    <SwitchPreference
+    <rikka.material.preference.MaterialSwitchPreference
       app:defaultValue="true"
       app:icon="@drawable/ic_apk_analytics"
       app:key="apkAnalytics"
       app:summary="@string/apk_analytics_summary"
       app:title="@string/apk_analytics" />
 
-    <SwitchPreference
+    <rikka.material.preference.MaterialSwitchPreference
       app:defaultValue="true"
       app:icon="@drawable/ic_color_palette"
       app:key="colorfulIcon"
       app:summary="@string/colorful_icon_summary"
       app:title="@string/colorful_icon" />
 
-    <SwitchPreference
-      app:defaultValue="false"
-      app:icon="@drawable/ic_material"
-      app:key="md3"
-      app:summary="(Alpha)"
-      app:title="Material Design 3" />
+    <rikka.preference.SimpleMenuPreference
+      app:defaultValue="notify"
+      app:entries="@array/snapshot_keep"
+      app:entryValues="@array/snapshot_keep_value"
+      app:icon="@drawable/ic_outline_save"
+      app:key="snapshotKeep"
+      app:summary="%s"
+      app:title="@string/snapshot_keep" />
 
     <rikka.preference.SimpleMenuPreference
       app:defaultValue="system"
@@ -44,7 +39,7 @@
       app:title="@string/dark_mode" />
 
     <rikka.preference.SimpleMenuPreference
-      app:defaultValue="gitee"
+      app:defaultValue="gitlab"
       app:entries="@array/list_repo"
       app:entryValues="@array/list_repo_value"
       app:icon="@drawable/ic_repository"
@@ -52,7 +47,7 @@
       app:summary="%s"
       app:title="@string/rules_repo_title" />
 
-    <rikka.preference.SimpleMenuPreference
+    <ListPreference
       app:defaultValue="SYSTEM"
       app:entries="@array/language"
       app:entryValues="@array/language_value"
@@ -86,10 +81,26 @@
     app:title="@string/pref_group_others">
 
     <Preference
-      app:icon="@drawable/ic_logo_setting"
+      app:icon="@drawable/ic_logo"
       app:key="about"
       app:summary="@string/settings_about_summary"
       app:title="@string/settings_about">
+
+    </Preference>
+
+    <Preference
+      app:icon="@drawable/ic_upgrade"
+      app:key="getUpdates"
+      app:summary="@string/settings_get_updates_summary"
+      app:title="@string/settings_get_updates">
+
+    </Preference>
+
+    <Preference
+      app:icon="@drawable/ic_translate"
+      app:key="translation"
+      app:summary="@string/settings_translate_summary"
+      app:title="@string/settings_translate">
 
     </Preference>
 
@@ -110,16 +121,16 @@
     </Preference>
 
     <Preference
-      app:icon="@drawable/ic_telegram"
+      app:icon="@drawable/ic_lib_telegram"
       app:key="tg"
       app:summary="@string/join_telegram_group_summary"
       app:title="@string/join_telegram_group">
 
     </Preference>
 
-    <SwitchPreference
+    <rikka.material.preference.MaterialSwitchPreference
       app:defaultValue="true"
-      app:icon="@drawable/ic_appcenter"
+      app:icon="@drawable/ic_firebase_monochrome"
       app:key="analytics"
       app:summary="@string/anonymous_statistics_summary"
       app:title="@string/anonymous_statistics" />

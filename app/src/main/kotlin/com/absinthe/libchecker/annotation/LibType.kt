@@ -21,8 +21,13 @@ const val PERMISSION = 7
 const val METADATA = 8
 const val PACKAGE = 9
 const val SHARED_UID = 10
+const val SIGNATURES = 11
 
-@IntDef(ALL, NATIVE, SERVICE, ACTIVITY, RECEIVER, PROVIDER, DEX, STATIC, PERMISSION, METADATA, PACKAGE, SHARED_UID)
+@IntDef(NOT_MARKED, ALL, NATIVE, SERVICE, ACTIVITY, RECEIVER, PROVIDER, DEX, STATIC, PERMISSION, METADATA, PACKAGE, SHARED_UID, SIGNATURES)
 @Target(AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.FIELD, AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.SOURCE)
 annotation class LibType
+
+fun isComponentType(@LibType type: Int): Boolean {
+  return type in listOf(SERVICE, ACTIVITY, RECEIVER, PROVIDER)
+}
